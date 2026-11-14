@@ -1,4 +1,4 @@
-# Sheriff Showdown (cross-hair)
+# Sheriff Showdown
 
 A browser-based Western shooting range game. Villains and citizens step out of
 doorways along the street, while townspeople stroll the boardwalks. Shoot the villains, spare the citizens, beat
@@ -39,6 +39,7 @@ npm run test:watch
 | Mouse | Aim the crosshair |
 | Space | Fire (one shot per press; holding does not auto-fire) |
 | Enter or R | Start / restart |
+| M | Mute or unmute all sound |
 
 The OS cursor is hidden over the canvas; the crosshair is your cursor.
 
