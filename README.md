@@ -112,4 +112,4 @@ decided for v1:
 - A villain firing also resets the streak (treated like a miss penalty).
 - Score may go negative from citizen hits; it is never clamped.
 - Audio is synthesized with WebAudio (`src/audio/sound.ts`), with no asset files. It starts after the first click or key press, because browsers block earlier audio.
-- Art is placeholder shapes; `public/assets/` is reserved for later assets.
+- Art: a photo background (`src/assets/town.jpg`, cropped to 16:9) and six character sprites (`v1-3` villains, `c1-3` citizens) cut from the character sheet. Actors fade in and out on one shared feet line, so there are no doors.

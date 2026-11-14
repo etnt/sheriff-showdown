@@ -31,11 +31,11 @@ export interface Actor {
   hitboxHead: Hitbox;
 }
 
-export const BODY_W = 40;
-export const BODY_H = 62;
-export const HEAD_W = 26;
-export const HEAD_H = 26;
-export const TOTAL_H = BODY_H + HEAD_H; // 88
+export const BODY_W = 68;
+export const BODY_H = 142;
+export const HEAD_W = 48;
+export const HEAD_H = 40;
+export const TOTAL_H = BODY_H + HEAD_H; // 182
 
 // State durations (seconds).
 export const EMERGE_DURATION = 0.4;
@@ -50,9 +50,9 @@ export function resetActorIds(): void {
   nextId = 1;
 }
 
-/** Feet y while still hidden inside the door (body above the door top). */
+/** Feet y while hidden: slightly below the feet line, faded out. */
 export function hiddenFeetY(layout: LevelLayout = LEVEL): number {
-  return layout.boardwalkY - TOTAL_H;
+  return layout.boardwalkY + 24;
 }
 
 export function createActor(

@@ -21,20 +21,20 @@ function villain(exposureTime = 1.0): Actor {
 describe('stepActor transitions', () => {
   beforeEach(() => resetActorIds());
 
-  it('starts emerging, hidden inside the door', () => {
+  it('starts emerging, hidden just below the feet line', () => {
     const a = villain();
     expect(a.state).toBe('emerging');
     expect(a.y).toBe(hiddenFeetY());
-    expect(a.y).toBeLessThan(BOARDWALK_Y);
+    expect(a.y).toBeGreaterThan(BOARDWALK_Y);
   });
 
-  it('animates y upward during emerge, then becomes exposed', () => {
+  it('animates y up to the feet line during emerge, then becomes exposed', () => {
     const a = villain(1.0);
     const startY = a.y;
     stepActor(a, EMERGE_DURATION / 2);
     expect(a.state).toBe('emerging');
-    expect(a.y).toBeGreaterThan(startY);
-    expect(a.y).toBeLessThan(BOARDWALK_Y);
+    expect(a.y).toBeLessThan(startY);
+    expect(a.y).toBeGreaterThan(BOARDWALK_Y);
 
     stepActor(a, EMERGE_DURATION); // completes the emerge
     expect(a.state).toBe('exposed');
@@ -80,7 +80,7 @@ describe('stepActor transitions', () => {
     expect(a.state).toBe('gone');
   });
 
-  it('citizen: exposed -> leaving -> gone, y animates back up', () => {
+  it('citizen: exposed -> leaving -> gone, y animates back down', () => {
     const a = createActor('citizen', 1);
     a.exposureTime = 0.5;
     stepActor(a, EMERGE_DURATION);
@@ -92,11 +92,11 @@ describe('stepActor transitions', () => {
     const midY = (a.y = BOARDWALK_Y);
     stepActor(a, LEAVE_DURATION / 2);
     expect(a.state).toBe('leaving');
-    expect(a.y).toBeLessThan(midY);
+    expect(a.y).toBeGreaterThan(midY);
 
     stepActor(a, LEAVE_DURATION);
     expect(a.state).toBe('gone');
-    expect(a.y).toBeLessThanOrEqual(hiddenFeetY() + 1e-9);
+    expect(a.y).toBeGreaterThanOrEqual(hiddenFeetY() - 1e-9);
   });
 
   it('shot -> gone after the shot animation', () => {

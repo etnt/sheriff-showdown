@@ -1,7 +1,7 @@
 /**
  * Static level geometry in logical coordinates (960x540).
- * Five saloon facades line the street; each has one door that actors
- * emerge from. Actors stand on the boardwalk in front of the doors.
+ * Actors stand on one shared feet line in the street, at five spawn
+ * spots spread across the width of the background photo.
  */
 
 export const GAME_WIDTH = 960;
@@ -10,9 +10,9 @@ export const GAME_HEIGHT = 540;
 /** Height of the sky band; facades start at or above this line. */
 export const SKY_HEIGHT = 210;
 
-/** Top of the boardwalk, where actor feet rest when fully exposed. */
-export const BOARDWALK_Y = 380;
-export const BOARDWALK_HEIGHT = 34;
+/** Feet line: where actor feet rest when fully exposed. */
+export const BOARDWALK_Y = 455;
+export const BOARDWALK_HEIGHT = 0;
 
 export interface DoorRect {
   x: number;
@@ -21,13 +21,13 @@ export interface DoorRect {
   h: number;
 }
 
-/** One door per facade, bottoms flush with the boardwalk. */
+/** Spawn spots (x/w give the footprint; y/h span a standing actor). */
 export const DOORS: readonly DoorRect[] = [
-  { x: 78, y: 268, w: 62, h: 112 },
-  { x: 258, y: 268, w: 62, h: 112 },
-  { x: 449, y: 268, w: 62, h: 112 },
-  { x: 640, y: 268, w: 62, h: 112 },
-  { x: 820, y: 268, w: 62, h: 112 },
+  { x: 100, y: 273, w: 60, h: 182 },
+  { x: 290, y: 273, w: 60, h: 182 },
+  { x: 450, y: 273, w: 60, h: 182 },
+  { x: 610, y: 273, w: 60, h: 182 },
+  { x: 800, y: 273, w: 60, h: 182 },
 ];
 
 export interface LevelLayout {
