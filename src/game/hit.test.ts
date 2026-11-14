@@ -1,13 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createActor, resetActorIds, updateHitboxes, type Actor } from './entities';
-import { BOARDWALK_Y } from './levelLayout';
+import { createActor, createWalker, resetActorIds, updateHitboxes, type Actor } from './entities';
 import { detectHit } from './hit';
 
 function exposed(kind: Actor['kind'], id: number, doorIndex = 2): Actor {
   const a = createActor(kind, doorIndex);
   a.id = id;
   a.state = 'exposed';
-  a.y = BOARDWALK_Y;
+  a.y = a.feetY;
   updateHitboxes(a);
   return a;
 }
@@ -86,5 +85,27 @@ describe('detectHit', () => {
 
   it('handles an empty actor list', () => {
     expect(detectHit({ x: 480, y: 300 }, [])).toEqual({ hit: false });
+  });
+
+  it('hits a walking townsperson', () => {
+    const w = createWalker(0, false);
+    const r = detectHit(bodyCenter(w), [w]);
+    expect(r).toEqual({ hit: true, actor: w, zone: 'body' });
+  });
+
+  it('the nearer actor (larger feet y) wins on overlap, regardless of id', () => {
+    const far = exposed('villain', 9, 2);
+    const near = exposed('citizen', 1, 2);
+    near.y = far.y + 10;
+    updateHitboxes(near);
+    const p = { x: far.x, y: near.hitboxBody.y + 5 }; // inside both bodies
+    const r = detectHit(p, [far, near]);
+    expect(r.hit && r.actor.id).toBe(1);
+  });
+
+  it('ignores actors that are not exposed or walking', () => {
+    const a = exposed('villain', 1);
+    a.state = 'emerging';
+    expect(detectHit(bodyCenter(a), [a])).toEqual({ hit: false });
   });
 });

@@ -5,12 +5,12 @@ import {
   LEAVE_DURATION,
   SHOT_DURATION,
   createActor,
+  createWalker,
   hiddenFeetY,
   resetActorIds,
   type Actor,
 } from './entities';
 import { stepActor, updateActors, type BehaviorEvent } from './behavior';
-import { BOARDWALK_Y } from './levelLayout';
 
 function villain(exposureTime = 1.0): Actor {
   const a = createActor('villain', 0);
@@ -21,11 +21,11 @@ function villain(exposureTime = 1.0): Actor {
 describe('stepActor transitions', () => {
   beforeEach(() => resetActorIds());
 
-  it('starts emerging, hidden just below the feet line', () => {
+  it('starts emerging, a little further back inside the doorway', () => {
     const a = villain();
     expect(a.state).toBe('emerging');
-    expect(a.y).toBe(hiddenFeetY());
-    expect(a.y).toBeGreaterThan(BOARDWALK_Y);
+    expect(a.y).toBe(hiddenFeetY(a));
+    expect(a.y).toBeLessThan(a.feetY);
   });
 
   it('animates y up to the feet line during emerge, then becomes exposed', () => {
@@ -33,13 +33,13 @@ describe('stepActor transitions', () => {
     const startY = a.y;
     stepActor(a, EMERGE_DURATION / 2);
     expect(a.state).toBe('emerging');
-    expect(a.y).toBeLessThan(startY);
-    expect(a.y).toBeGreaterThan(BOARDWALK_Y);
+    expect(a.y).toBeGreaterThan(startY);
+    expect(a.y).toBeLessThan(a.feetY);
 
     stepActor(a, EMERGE_DURATION); // completes the emerge
     expect(a.state).toBe('exposed');
     expect(a.timer).toBeCloseTo(1.0, 6);
-    expect(a.y).toBe(BOARDWALK_Y);
+    expect(a.y).toBe(a.feetY);
   });
 
   it('villain: exposed -> firing, and reports the villainFired event once', () => {
@@ -80,7 +80,7 @@ describe('stepActor transitions', () => {
     expect(a.state).toBe('gone');
   });
 
-  it('citizen: exposed -> leaving -> gone, y animates back down', () => {
+  it('citizen: exposed -> leaving -> gone, y animates back inside', () => {
     const a = createActor('citizen', 1);
     a.exposureTime = 0.5;
     stepActor(a, EMERGE_DURATION);
@@ -89,14 +89,14 @@ describe('stepActor transitions', () => {
     expect(a.state).toBe('leaving');
     expect(a.timer).toBeCloseTo(LEAVE_DURATION, 6);
 
-    const midY = (a.y = BOARDWALK_Y);
+    const midY = (a.y = a.feetY);
     stepActor(a, LEAVE_DURATION / 2);
     expect(a.state).toBe('leaving');
-    expect(a.y).toBeGreaterThan(midY);
+    expect(a.y).toBeLessThan(midY);
 
     stepActor(a, LEAVE_DURATION);
     expect(a.state).toBe('gone');
-    expect(a.y).toBeGreaterThanOrEqual(hiddenFeetY() - 1e-9);
+    expect(a.y).toBeLessThanOrEqual(hiddenFeetY(a) + 1e-9);
   });
 
   it('shot -> gone after the shot animation', () => {
@@ -122,5 +122,40 @@ describe('stepActor transitions', () => {
     stepActor(a, EMERGE_DURATION / 2);
     expect(a.hitboxBody.y + a.hitboxBody.h).toBeCloseTo(a.y, 6);
     expect(a.hitboxHead.y + a.hitboxHead.h).toBeCloseTo(a.hitboxBody.y, 6);
+  });
+});
+
+describe('walkers', () => {
+  beforeEach(() => resetActorIds());
+
+  it('walk along the path, change size with depth, then are gone', () => {
+    const a = createWalker(0, false); // left boardwalk: near -> far
+    expect(a.state).toBe('walking');
+    expect(a.kind).toBe('citizen');
+    const startScale = a.scale;
+    const startX = a.x;
+
+    stepActor(a, a.walk!.duration / 2);
+    expect(a.state).toBe('walking');
+    expect(a.x).toBeGreaterThan(startX);
+    expect(a.scale).toBeLessThan(startScale);
+
+    stepActor(a, a.walk!.duration);
+    expect(a.state).toBe('gone');
+  });
+
+  it('a reversed walker starts at the far end and grows', () => {
+    const fwd = createWalker(0, false);
+    const rev = createWalker(0, true);
+    expect(rev.scale).toBeLessThan(fwd.scale);
+    stepActor(rev, rev.walk!.duration / 2);
+    expect(rev.scale).toBeGreaterThan(createWalker(0, true).scale);
+  });
+
+  it('never fire events', () => {
+    const a = createWalker(1, false);
+    const events: BehaviorEvent[] = [];
+    stepActor(a, a.walk!.duration + 1, events);
+    expect(events).toEqual([]);
   });
 });

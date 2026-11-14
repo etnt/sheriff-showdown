@@ -4,12 +4,13 @@ import {
   EXPOSURE_END,
   EXPOSURE_START,
   MAX_CONCURRENT,
+  MAX_WALKERS,
   SPAWN_INTERVAL_END,
   SPAWN_INTERVAL_START,
   VILLAIN_PROBABILITY,
   Spawner,
 } from './spawner';
-import { createActor, isAlive, type Actor } from './entities';
+import { createActor, createWalker, isAlive, type Actor } from './entities';
 import { DOORS } from './levelLayout';
 
 function fillActors(count: number): Actor[] {
@@ -29,7 +30,9 @@ describe('Spawner', () => {
     expect(doorIndex).toBeGreaterThanOrEqual(0);
     expect(doorIndex).toBeLessThan(DOORS.length);
     const door = DOORS[doorIndex]!;
-    expect(a!.x).toBe(door.x + door.w / 2);
+    expect(a!.x).toBe(door.x);
+    expect(a!.feetY).toBe(door.feetY);
+    expect(a!.scale).toBe(door.scale);
   });
 
   it('never spawns into an occupied door', () => {
@@ -116,5 +119,30 @@ describe('Spawner', () => {
     expect(late).not.toBeNull();
     expect(late!.exposureTime).toBeLessThan(early!.exposureTime);
     expect(late!.exposureTime).toBeCloseTo(EXPOSURE_END, 6);
+  });
+});
+
+describe('Spawner walkers', () => {
+  it('spawns a citizen walker once the timer expires', () => {
+    const spawner = new Spawner({ rng: new Rng(3), getTime: () => 0 });
+    expect(spawner.updateWalkers(0.1, [])).toBeNull();
+    const w = spawner.updateWalkers(5, []);
+    expect(w).not.toBeNull();
+    expect(w!.state).toBe('walking');
+    expect(w!.kind).toBe('citizen');
+  });
+
+  it('respects the walker cap', () => {
+    const spawner = new Spawner({ rng: new Rng(3), getTime: () => 0 });
+    const walkers = Array.from({ length: MAX_WALKERS }, () => createWalker(0, false));
+    expect(spawner.updateWalkers(10, walkers)).toBeNull();
+  });
+
+  it('walkers do not count against door actors or the concurrency cap', () => {
+    const spawner = new Spawner({ rng: new Rng(5), getTime: () => 0 });
+    const walkers = Array.from({ length: MAX_WALKERS }, () => createWalker(1, true));
+    const a = spawner.trySpawn(walkers);
+    expect(a).not.toBeNull();
+    expect(a!.doorIndex).toBeGreaterThanOrEqual(0);
   });
 });

@@ -2,10 +2,17 @@
  * Actor data model and hitbox computation. Pure data + math, no canvas.
  */
 
-import { LEVEL, type LevelLayout } from './levelLayout';
+import { LEVEL, scaleAt, type LevelLayout } from './levelLayout';
 
 export type ActorKind = 'villain' | 'citizen';
-export type ActorState = 'emerging' | 'exposed' | 'leaving' | 'firing' | 'shot' | 'gone';
+export type ActorState =
+  | 'emerging'
+  | 'exposed'
+  | 'leaving'
+  | 'firing'
+  | 'shot'
+  | 'walking'
+  | 'gone';
 
 export interface Hitbox {
   x: number;
@@ -17,12 +24,19 @@ export interface Hitbox {
 export interface Actor {
   id: number;
   kind: ActorKind;
+  /** Doorway index, or -1 for a boardwalk walker. */
   doorIndex: number;
   state: ActorState;
   /** Center x of the actor. */
   x: number;
-  /** Feet y (boardwalk line when fully out). */
+  /** Current feet y. */
   y: number;
+  /** Feet y when fully out of the doorway (the actor's home row). */
+  feetY: number;
+  /** Size factor from perspective (1 = full sprite size). */
+  scale: number;
+  /** Route and start data for walkers; null for doorway actors. */
+  walk: { x0: number; y0: number; x1: number; y1: number; duration: number } | null;
   /** Seconds the actor stays exposed; set by the spawner. */
   exposureTime: number;
   /** Time left in the current state, seconds. */
@@ -50,9 +64,9 @@ export function resetActorIds(): void {
   nextId = 1;
 }
 
-/** Feet y while hidden: slightly below the feet line, faded out. */
-export function hiddenFeetY(layout: LevelLayout = LEVEL): number {
-  return layout.boardwalkY + 24;
+/** Feet y while still inside the doorway: a little further back. */
+export function hiddenFeetY(actor: Pick<Actor, 'feetY' | 'scale'>): number {
+  return actor.feetY - 14 * actor.scale;
 }
 
 export function createActor(
@@ -69,10 +83,46 @@ export function createActor(
     kind,
     doorIndex,
     state: 'emerging',
-    x: door.x + door.w / 2,
-    y: hiddenFeetY(layout),
+    x: door.x,
+    y: 0,
+    feetY: door.feetY,
+    scale: door.scale,
+    walk: null,
     exposureTime: 1.5,
     timer: EMERGE_DURATION,
+    hitboxBody: { x: 0, y: 0, w: 0, h: 0 },
+    hitboxHead: { x: 0, y: 0, w: 0, h: 0 },
+  };
+  actor.y = hiddenFeetY(actor);
+  updateHitboxes(actor);
+  return actor;
+}
+
+/** A townsperson who walks a boardwalk path; `reverse` walks it backwards. */
+export function createWalker(
+  pathIndex: number,
+  reverse: boolean,
+  layout: LevelLayout = LEVEL,
+): Actor {
+  const path = layout.walkPaths[pathIndex];
+  if (!path) {
+    throw new Error(`createWalker: bad pathIndex ${pathIndex}`);
+  }
+  const walk = reverse
+    ? { x0: path.x1, y0: path.y1, x1: path.x0, y1: path.y0, duration: path.duration }
+    : { x0: path.x0, y0: path.y0, x1: path.x1, y1: path.y1, duration: path.duration };
+  const actor: Actor = {
+    id: nextId++,
+    kind: 'citizen',
+    doorIndex: -1,
+    state: 'walking',
+    x: walk.x0,
+    y: walk.y0,
+    feetY: walk.y0,
+    scale: scaleAt(walk.y0),
+    walk,
+    exposureTime: 0,
+    timer: walk.duration,
     hitboxBody: { x: 0, y: 0, w: 0, h: 0 },
     hitboxHead: { x: 0, y: 0, w: 0, h: 0 },
   };
@@ -85,23 +135,24 @@ export function createActor(
  * Head: small box on top. Body: larger box below it.
  */
 export function updateHitboxes(actor: Actor): void {
+  const k = actor.scale;
   actor.hitboxBody = {
-    x: actor.x - BODY_W / 2,
-    y: actor.y - BODY_H,
-    w: BODY_W,
-    h: BODY_H,
+    x: actor.x - (BODY_W * k) / 2,
+    y: actor.y - BODY_H * k,
+    w: BODY_W * k,
+    h: BODY_H * k,
   };
   actor.hitboxHead = {
-    x: actor.x - HEAD_W / 2,
-    y: actor.y - TOTAL_H,
-    w: HEAD_W,
-    h: HEAD_H,
+    x: actor.x - (HEAD_W * k) / 2,
+    y: actor.y - TOTAL_H * k,
+    w: HEAD_W * k,
+    h: HEAD_H * k,
   };
 }
 
 /** Rough visual center of the actor, for effects. */
 export function actorCenter(actor: Actor): { x: number; y: number } {
-  return { x: actor.x, y: actor.y - TOTAL_H / 2 };
+  return { x: actor.x, y: actor.y - (TOTAL_H * actor.scale) / 2 };
 }
 
 export function isAlive(actor: Actor): boolean {

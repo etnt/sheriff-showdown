@@ -1,47 +1,75 @@
 /**
- * Static level geometry in logical coordinates (960x540).
- * Actors stand on one shared feet line in the street, at five spawn
- * spots spread across the width of the background photo.
+ * Static level geometry in logical coordinates (960x540), matched to
+ * the town photo (`src/assets/town.jpg`).
+ *
+ * Perspective: the horizon sits near y = 252, and a standing person's
+ * size grows linearly with feet y below it (`scaleAt`). Doorways and
+ * boardwalk paths are placed on the photo by eye, so every actor gets
+ * a believable size for where it stands.
  */
 
 export const GAME_WIDTH = 960;
 export const GAME_HEIGHT = 540;
 
-/** Height of the sky band; facades start at or above this line. */
-export const SKY_HEIGHT = 210;
+export const HORIZON_Y = 252;
+export const MIN_SCALE = 0.34;
+export const MAX_SCALE = 1.1;
 
-/** Feet line: where actor feet rest when fully exposed. */
-export const BOARDWALK_Y = 455;
-export const BOARDWALK_HEIGHT = 0;
-
-export interface DoorRect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
+/** Actor size factor (1 = full sprite size) for feet at screen row `y`. */
+export function scaleAt(y: number): number {
+  const s = (y - HORIZON_Y) / 100;
+  return s < MIN_SCALE ? MIN_SCALE : s > MAX_SCALE ? MAX_SCALE : s;
 }
 
-/** Spawn spots (x/w give the footprint; y/h span a standing actor). */
+/** A doorway in the photo that actors step out of. */
+export interface DoorRect {
+  /** Center x of the doorway; the actor stands here. */
+  x: number;
+  /** Feet row when standing in the doorway. */
+  feetY: number;
+  /** Size factor for an actor standing here. */
+  scale: number;
+  /** Doorway footprint, used for the footprint width and tests. */
+  w: number;
+}
+
+function door(x: number, feetY: number, w: number): DoorRect {
+  return { x, feetY, scale: scaleAt(feetY), w };
+}
+
 export const DOORS: readonly DoorRect[] = [
-  { x: 100, y: 273, w: 60, h: 182 },
-  { x: 290, y: 273, w: 60, h: 182 },
-  { x: 450, y: 273, w: 60, h: 182 },
-  { x: 610, y: 273, w: 60, h: 182 },
-  { x: 800, y: 273, w: 60, h: 182 },
+  door(205, 322, 60), // saloon batwing doors (near left)
+  door(382, 297, 36), // shop under the red porch
+  door(452, 285, 28), // general store (far left)
+  door(785, 300, 30), // shop doorway on the right
+  door(918, 300, 36), // post office door (right)
+];
+
+/** A straight boardwalk route that townspeople walk along. */
+export interface WalkPath {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  /** Seconds to walk the whole path. */
+  duration: number;
+}
+
+export const WALK_PATHS: readonly WalkPath[] = [
+  { x0: 170, y0: 355, x1: 420, y1: 292, duration: 11 }, // left boardwalk
+  { x0: 905, y0: 350, x1: 745, y1: 303, duration: 8 }, // right boardwalk
 ];
 
 export interface LevelLayout {
   width: number;
   height: number;
-  boardwalkY: number;
-  boardwalkHeight: number;
   doors: readonly DoorRect[];
+  walkPaths: readonly WalkPath[];
 }
 
 export const LEVEL: LevelLayout = {
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
-  boardwalkY: BOARDWALK_Y,
-  boardwalkHeight: BOARDWALK_HEIGHT,
   doors: DOORS,
+  walkPaths: WALK_PATHS,
 };

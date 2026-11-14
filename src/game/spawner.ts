@@ -4,8 +4,8 @@
  */
 
 import { Rng } from '../core/rng';
-import { createActor, isAlive, type Actor } from './entities';
-import { DOORS } from './levelLayout';
+import { createActor, createWalker, isAlive, type Actor } from './entities';
+import { DOORS, WALK_PATHS } from './levelLayout';
 
 export const MAX_CONCURRENT = 3;
 export const VILLAIN_PROBABILITY = 0.65;
@@ -13,6 +13,10 @@ export const SPAWN_INTERVAL_START = 1.5;
 export const SPAWN_INTERVAL_END = 0.6;
 export const EXPOSURE_START = 2.0;
 export const EXPOSURE_END = 0.9;
+/** Townspeople strolling the boardwalks: cap and gap between starts (s). */
+export const MAX_WALKERS = 2;
+export const WALKER_GAP_MIN = 3;
+export const WALKER_GAP_MAX = 7;
 
 const clamp01 = (t: number): number => (t < 0 ? 0 : t > 1 ? 1 : t);
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
@@ -32,12 +36,14 @@ export class Spawner {
   private readonly getTime: () => number;
   private readonly roundDuration: number;
   private timer: number;
+  private walkerTimer: number;
 
   constructor(opts: SpawnerOptions) {
     this.rng = opts.rng;
     this.getTime = opts.getTime;
     this.roundDuration = opts.roundDuration ?? 60;
     this.timer = opts.initialDelay ?? 0.9;
+    this.walkerTimer = 1.5;
   }
 
   /** Difficulty progress: 0 at round start, 1 at round end. */
@@ -68,7 +74,7 @@ export class Spawner {
 
   /** Attempt one spawn; returns null if the cap is hit or no door is free. */
   trySpawn(actors: readonly Actor[]): Actor | null {
-    const active = actors.filter(isAlive);
+    const active = actors.filter((a) => isAlive(a) && a.state !== 'walking');
     if (active.length >= MAX_CONCURRENT) return null;
 
     const occupied = new Set(active.map((a) => a.doorIndex));
@@ -85,8 +91,23 @@ export class Spawner {
     return actor;
   }
 
-  /** Reset the timer (round restart). */
+  /**
+   * Advance the walker timer. Returns a new boardwalk walker, or null
+   * (timer not expired or already MAX_WALKERS on screen).
+   */
+  updateWalkers(dt: number, actors: readonly Actor[]): Actor | null {
+    this.walkerTimer -= dt;
+    if (this.walkerTimer > 0) return null;
+    this.walkerTimer += this.rng.range(WALKER_GAP_MIN, WALKER_GAP_MAX);
+    const walking = actors.filter((a) => isAlive(a) && a.state === 'walking').length;
+    if (walking >= MAX_WALKERS) return null;
+    const pathIndex = Math.floor(this.rng.next() * WALK_PATHS.length);
+    return createWalker(pathIndex, this.rng.next() < 0.5);
+  }
+
+  /** Reset the timers (round restart). */
   reset(initialDelay = 0.9): void {
     this.timer = initialDelay;
+    this.walkerTimer = 1.5;
   }
 }

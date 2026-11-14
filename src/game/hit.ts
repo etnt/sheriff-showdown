@@ -1,8 +1,9 @@
 /**
  * Hit detection. Pure function over actor data, no canvas/DOM.
  *
- * - Only `exposed` actors are testable.
- * - Actors are tested front to back (higher id = spawned later = in front).
+ * - Only `exposed` and `walking` actors are testable.
+ * - Actors are tested front to back: larger feet y is nearer the camera;
+ *   ties go to the higher id (spawned later).
  * - The head box is tested before the body box.
  * - At most one hit is returned.
  */
@@ -19,8 +20,8 @@ export function containsPoint(box: Hitbox, x: number, y: number): boolean {
 
 export function detectHit(point: { x: number; y: number }, actors: readonly Actor[]): HitResult {
   const candidates = actors
-    .filter((a) => a.state === 'exposed')
-    .sort((a, b) => b.id - a.id);
+    .filter((a) => a.state === 'exposed' || a.state === 'walking')
+    .sort((a, b) => b.y - a.y || b.id - a.id);
   for (const actor of candidates) {
     if (containsPoint(actor.hitboxHead, point.x, point.y)) {
       return { hit: true, actor, zone: 'head' };

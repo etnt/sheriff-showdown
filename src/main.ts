@@ -137,6 +137,8 @@ const loop = new GameLoop({
       roundElapsed += dt;
       const spawned = spawner.update(dt, actors);
       if (spawned) actors.push(spawned);
+      const walker = spawner.updateWalkers(dt, actors);
+      if (walker) actors.push(walker);
       game.update(dt);
     }
 

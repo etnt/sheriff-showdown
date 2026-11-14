@@ -1,15 +1,14 @@
 /**
  * Actor rendering with photo sprites. Villains and citizens each have
  * three looks, picked from the actor id so a given actor never changes
- * its appearance. Sprites are drawn with their feet on `actor.y` and
- * scaled to the full hitbox height.
+ * its appearance. Sprites are drawn with their feet on `actor.y`, scaled
+ * by the actor's perspective `scale`, and sorted back to front.
  *
- * Emerging and leaving are drawn as a fade plus a small rise or sink,
- * driven by how far `actor.y` is between the hidden and exposed lines.
+ * Emerging and leaving: the actor steps out of the doorway shadow, so
+ * it fades in from dark. Walkers bob gently as they stroll.
  */
 
 import { FIRE_DURATION, SHOT_DURATION, TOTAL_H, hiddenFeetY, type Actor } from '../game/entities';
-import { BOARDWALK_Y } from '../game/levelLayout';
 import { citizenSprites, isReady, villainSprites } from './assets';
 
 const clamp01 = (t: number): number => (t < 0 ? 0 : t > 1 ? 1 : t);
@@ -19,26 +18,33 @@ export function drawActors(
   actors: readonly Actor[],
   playing: boolean,
 ): void {
-  for (const actor of actors) {
-    if (actor.state !== 'gone') drawActor(ctx, actor, playing);
-  }
+  // Back to front: smaller feet y is further away.
+  const order = actors.filter((a) => a.state !== 'gone').sort((a, b) => a.feetY - b.feetY || a.id - b.id);
+  for (const actor of order) drawActor(ctx, actor, playing);
+}
+
+/** 0 when fully inside the doorway, 1 when fully out. */
+function visibility(actor: Actor): number {
+  if (actor.state !== 'emerging' && actor.state !== 'leaving') return 1;
+  const hidden = hiddenFeetY(actor);
+  return clamp01((actor.y - hidden) / (actor.feetY - hidden));
 }
 
 function drawActor(ctx: CanvasRenderingContext2D, actor: Actor, playing: boolean): void {
-  const hidden = hiddenFeetY();
-  // 0 when fully hidden, 1 when fully exposed.
-  const visible = clamp01((hidden - actor.y) / (hidden - BOARDWALK_Y));
+  const k = actor.scale;
+  const visible = visibility(actor);
+  const fade = clamp01((visible - 0.15) / 0.85);
 
   ctx.save();
 
-  // Contact shadow stays on the feet line while the actor rises.
-  ctx.globalAlpha = 0.4 * visible;
+  // Contact shadow stays on the home row while the actor steps out.
+  ctx.globalAlpha = 0.4 * fade;
   ctx.fillStyle = '#000';
   ctx.beginPath();
-  ctx.ellipse(actor.x, BOARDWALK_Y - 1, 36, 8, 0, 0, Math.PI * 2);
+  ctx.ellipse(actor.x, actor.feetY - 1, 36 * k, 8 * k, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.globalAlpha = visible;
+  ctx.globalAlpha = fade;
 
   // Flinch/fall animation for shot actors: rotate around the feet.
   if (actor.state === 'shot') {
@@ -50,39 +56,67 @@ function drawActor(ctx: CanvasRenderingContext2D, actor: Actor, playing: boolean
     ctx.translate(-actor.x, -actor.y);
   }
 
-  drawSprite(ctx, actor);
+  // Gentle walking bob: a hop and a sway, scaled with distance.
+  let bob = 0;
+  if (actor.state === 'walking') {
+    const phase = actor.timer * 9;
+    bob = -Math.abs(Math.sin(phase)) * 2.5 * k;
+    ctx.translate(actor.x, actor.y);
+    ctx.rotate(Math.sin(phase) * 0.03);
+    ctx.translate(-actor.x, -actor.y);
+  }
+
+  drawSprite(ctx, actor, 1 - visible, bob);
 
   // Muzzle flash during the first moments of firing. Skipped on the
   // game-over screen: the firing timer is frozen there, so the flash
   // would otherwise never fade.
   if (playing && actor.state === 'firing' && actor.timer > FIRE_DURATION - 0.12) {
-    const fx = actor.x + 24;
-    const fy = actor.y - TOTAL_H * 0.5;
-    const glow = ctx.createRadialGradient(fx, fy, 1, fx, fy, 22);
+    const r = 6 + 18 * k;
+    const fx = actor.x + 24 * k;
+    const fy = actor.y - TOTAL_H * k * 0.5;
+    const glow = ctx.createRadialGradient(fx, fy, 1, fx, fy, r);
     glow.addColorStop(0, 'rgba(255, 248, 208, 1)');
     glow.addColorStop(0.4, 'rgba(255, 190, 70, 0.8)');
     glow.addColorStop(1, 'rgba(255, 120, 20, 0)');
     ctx.globalAlpha = 1;
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(fx, fy, 22, 0, Math.PI * 2);
+    ctx.arc(fx, fy, r, 0, Math.PI * 2);
     ctx.fill();
   }
 
   ctx.restore();
 }
 
-function drawSprite(ctx: CanvasRenderingContext2D, actor: Actor): void {
+let tintCanvas: HTMLCanvasElement | null = null;
+
+/** Sprite darkened toward black by `shade` (0..1), keeping its alpha. */
+function shadedSprite(img: HTMLImageElement, shade: number): CanvasImageSource {
+  if (shade < 0.02) return img;
+  tintCanvas ??= document.createElement('canvas');
+  tintCanvas.width = img.naturalWidth;
+  tintCanvas.height = img.naturalHeight;
+  const t = tintCanvas.getContext('2d');
+  if (!t) return img;
+  t.drawImage(img, 0, 0);
+  t.globalCompositeOperation = 'source-atop';
+  t.fillStyle = `rgba(12, 7, 3, ${shade * 0.8})`;
+  t.fillRect(0, 0, tintCanvas.width, tintCanvas.height);
+  return tintCanvas;
+}
+
+function drawSprite(ctx: CanvasRenderingContext2D, actor: Actor, shade: number, bob: number): void {
   const set = actor.kind === 'villain' ? villainSprites : citizenSprites;
   const img = set[actor.id % set.length];
   if (!img || !isReady(img)) return;
 
-  const h = TOTAL_H;
+  const h = TOTAL_H * actor.scale;
   const w = (img.naturalWidth / img.naturalHeight) * h;
 
   // A villain leans in slightly while firing.
   const lunge = actor.state === 'firing' ? 1.05 : 1;
-  ctx.translate(actor.x, actor.y);
+  ctx.translate(actor.x, actor.y + bob);
   ctx.scale(lunge, lunge);
-  ctx.drawImage(img, -w / 2, -h, w, h);
+  ctx.drawImage(shadedSprite(img, shade), -w / 2, -h, w, h);
 }

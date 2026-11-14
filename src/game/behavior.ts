@@ -3,8 +3,9 @@
  *
  * emerging -> exposed -> leaving (citizen) | firing (villain) -> gone
  *                       \-> shot (on hit) -> gone
- * `y` animates the emerge/leave (feet rise from inside the door to the
- * boardwalk line and back).
+ * walking (citizen on a boardwalk path) -> gone, or shot on hit.
+ * `y` animates the emerge/leave (the actor steps forward out of the
+ * doorway to its home row and back).
  */
 
 import {
@@ -15,7 +16,7 @@ import {
   updateHitboxes,
   type Actor,
 } from './entities';
-import { LEVEL } from './levelLayout';
+import { scaleAt } from './levelLayout';
 
 export interface BehaviorEvent {
   type: 'villainFired';
@@ -34,11 +35,11 @@ export function stepActor(actor: Actor, dt: number, events: BehaviorEvent[] = []
   switch (actor.state) {
     case 'emerging': {
       const p = clamp01(1 - Math.max(actor.timer, 0) / EMERGE_DURATION);
-      actor.y = lerp(hiddenFeetY(), LEVEL.boardwalkY, easeOut(p));
+      actor.y = lerp(hiddenFeetY(actor), actor.feetY, easeOut(p));
       if (actor.timer <= 0) {
         actor.state = 'exposed';
         actor.timer = actor.exposureTime;
-        actor.y = LEVEL.boardwalkY;
+        actor.y = actor.feetY;
       }
       break;
     }
@@ -61,7 +62,7 @@ export function stepActor(actor: Actor, dt: number, events: BehaviorEvent[] = []
       break;
     case 'leaving': {
       const p = clamp01(1 - Math.max(actor.timer, 0) / LEAVE_DURATION);
-      actor.y = lerp(LEVEL.boardwalkY, hiddenFeetY(), p);
+      actor.y = lerp(actor.feetY, hiddenFeetY(actor), p);
       if (actor.timer <= 0) {
         actor.state = 'gone';
       }
@@ -72,6 +73,19 @@ export function stepActor(actor: Actor, dt: number, events: BehaviorEvent[] = []
         actor.state = 'gone';
       }
       break;
+    case 'walking': {
+      const w = actor.walk;
+      if (!w || actor.timer <= 0) {
+        actor.state = 'gone';
+        break;
+      }
+      const p = clamp01(1 - actor.timer / w.duration);
+      actor.x = lerp(w.x0, w.x1, p);
+      actor.y = lerp(w.y0, w.y1, p);
+      actor.feetY = actor.y;
+      actor.scale = scaleAt(actor.y);
+      break;
+    }
   }
 
   updateHitboxes(actor);

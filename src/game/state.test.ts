@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createActor, resetActorIds, updateHitboxes, type Actor } from './entities';
-import { BOARDWALK_Y } from './levelLayout';
 import { Game, HIGH_SCORE_KEY, multiplierFor, type Storage } from './state';
 
 class MemoryStorage implements Storage {
@@ -21,7 +20,7 @@ function exposedVillain(): Actor {
   const a = createActor('villain', 2);
   a.exposureTime = 2;
   a.state = 'exposed';
-  a.y = BOARDWALK_Y;
+  a.y = a.feetY;
   updateHitboxes(a);
   return a;
 }
@@ -30,7 +29,7 @@ function exposedCitizen(): Actor {
   const a = createActor('citizen', 2);
   a.exposureTime = 2;
   a.state = 'exposed';
-  a.y = BOARDWALK_Y;
+  a.y = a.feetY;
   updateHitboxes(a);
   return a;
 }

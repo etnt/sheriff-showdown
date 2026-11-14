@@ -1,7 +1,7 @@
 # Sheriff Showdown (cross-hair)
 
 A browser-based Western shooting range game. Villains and citizens step out of
-saloon doors onto the boardwalk. Shoot the villains, spare the citizens, beat
+doorways along the street, while townspeople stroll the boardwalks. Shoot the villains, spare the citizens, beat
 the high score.
 
 Built with TypeScript, Vite, Canvas 2D and Vitest.
@@ -46,8 +46,10 @@ The OS cursor is hidden over the canvas; the crosshair is your cursor.
 
 - The round lasts **60 seconds** and you have **3 lives**. The round ends when
   either runs out.
-- Villains (black hat, red bandana) and citizens (light hat, blue or green
-  outfit) emerge from the saloon doors.
+- Villains (rough outlaws) and citizens (townsfolk) step out of five doorways
+  in the photo. Citizens also walk along the left and right boardwalks.
+  Shooting a walking citizen counts like any other citizen hit.
+- Far-away doors and walkers are smaller, so they are harder to hit.
 - Shooting a villain: **+100** body, **+150** headshot.
 - Shooting a citizen: **−200 points** and **−1 life**.
 - A villain that stays exposed until its timer ends **fires** and costs you
@@ -70,10 +72,10 @@ src/
     coords.ts        toGameCoords(): client px -> logical 960x540
     rng.ts           seedable mulberry32 RNG
   game/              pure logic, no canvas/DOM (unit-testable in Node)
-    levelLayout.ts   doors, boardwalk, canvas constants
+    levelLayout.ts   doorways, walk paths, perspective scale, canvas constants
     entities.ts      Actor model, hitboxes, state durations
     behavior.ts      state machine: emerging/exposed/leaving/firing/shot/gone
-    spawner.ts       free-door picking, 65% villains, difficulty curve
+    spawner.ts       free-door picking, 65% villains, difficulty curve, boardwalk walkers
     hit.ts           front-to-back hit detection, head before body
     state.ts         phases, score, lives, streak, ammo/reload, high score
   render/            all canvas drawing
@@ -112,4 +114,4 @@ decided for v1:
 - A villain firing also resets the streak (treated like a miss penalty).
 - Score may go negative from citizen hits; it is never clamped.
 - Audio is synthesized with WebAudio (`src/audio/sound.ts`), with no asset files. It starts after the first click or key press, because browsers block earlier audio.
-- Art: a photo background (`src/assets/town.jpg`, cropped to 16:9) and six character sprites (`v1-3` villains, `c1-3` citizens) cut from the character sheet. Actors fade in and out on one shared feet line, so there are no doors.
+- Art: a photo background (`src/assets/town.jpg`, cropped to 16:9) and six character sprites (`v1-3` villains, `c1-3` citizens) cut from the character sheet. Doorways and boardwalk paths are placed by eye on the photo (`levelLayout.ts`). Actor size follows a simple perspective rule, `scale = (feetY - 252) / 100`, clamped to 0.34-1.1. Actors step out of the doorway shadow (fading in from dark).
