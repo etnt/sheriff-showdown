@@ -87,6 +87,29 @@ function drawActor(ctx: CanvasRenderingContext2D, actor: Actor, playing: boolean
   }
 
   ctx.restore();
+
+  drawCountdown(ctx, actor);
+}
+
+/**
+ * Villains show how long until they fire: a bar above the head that
+ * drains and turns from yellow to red. Citizens never show one.
+ */
+function drawCountdown(ctx: CanvasRenderingContext2D, actor: Actor): void {
+  if (actor.kind !== 'villain' || actor.state !== 'exposed' || actor.exposureTime <= 0) return;
+  const left = clamp01(actor.timer / actor.exposureTime);
+  const k = actor.scale;
+  const w = Math.max(24, 44 * k);
+  const h = Math.max(4, 6 * k);
+  const x = actor.x - w / 2;
+  const y = actor.y - TOTAL_H * k - h - 6;
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+  ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+  ctx.fillStyle = left > 0.5 ? '#f2c230' : left > 0.25 ? '#f07a20' : '#e0301e';
+  ctx.fillRect(x, y, w * left, h);
+  ctx.restore();
 }
 
 let tintCanvas: HTMLCanvasElement | null = null;
@@ -116,7 +139,9 @@ function drawSprite(ctx: CanvasRenderingContext2D, actor: Actor, shade: number, 
 
   // A villain leans in slightly while firing.
   const lunge = actor.state === 'firing' ? 1.05 : 1;
+  ctx.save();
   ctx.translate(actor.x, actor.y + bob);
   ctx.scale(lunge, lunge);
   ctx.drawImage(shadedSprite(img, shade), -w / 2, -h, w, h);
+  ctx.restore();
 }

@@ -3,7 +3,9 @@
  * lives entirely in the render layer so `src/game/` stays canvas-free.
  */
 
-export type EffectKind = 'muzzle' | 'hit';
+import { GAME_HEIGHT, GAME_WIDTH } from '../game/levelLayout';
+
+export type EffectKind = 'muzzle' | 'hit' | 'flash';
 
 export interface Effect {
   kind: EffectKind;
@@ -24,6 +26,11 @@ export class Effects {
     this.list.push({ kind: 'hit', x, y, t: 0, duration: 0.28 });
   }
 
+  /** Red screen-edge flash: the player was shot at. */
+  flash(): void {
+    this.list.push({ kind: 'flash', x: 0, y: 0, t: 0, duration: 0.45 });
+  }
+
   update(dt: number): void {
     for (const e of this.list) e.t += dt;
     this.list = this.list.filter((e) => e.t < e.duration);
@@ -37,9 +44,22 @@ export class Effects {
     for (const e of this.list) {
       const p = e.t / e.duration;
       if (e.kind === 'muzzle') drawMuzzle(ctx, e, p);
+      else if (e.kind === 'flash') drawFlash(ctx, p);
       else drawHit(ctx, e, p);
     }
   }
+}
+
+function drawFlash(ctx: CanvasRenderingContext2D, p: number): void {
+  const cx = GAME_WIDTH / 2;
+  const cy = GAME_HEIGHT / 2;
+  const g = ctx.createRadialGradient(cx, cy, 160, cx, cy, 620);
+  g.addColorStop(0, 'rgba(200, 0, 0, 0)');
+  g.addColorStop(1, `rgba(200, 0, 0, ${0.55 * (1 - p)})`);
+  ctx.save();
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+  ctx.restore();
 }
 
 function drawMuzzle(ctx: CanvasRenderingContext2D, e: Effect, p: number): void {

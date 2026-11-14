@@ -66,11 +66,21 @@ const browserStorage: Storage = {
 const game = new Game(browserStorage);
 const rng = new Rng((Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0);
 
+/** Villains that already played their warning click this exposure. */
+const warned = new Set<number>();
+/** Seconds before firing at which a villain cocks its gun. */
+const WARNING_TIME = 0.6;
+
 let roundElapsed = 0;
 let actors: Actor[] = [];
 const spawner = new Spawner({ rng, getTime: () => roundElapsed });
 const effects = new Effects();
 const sound = new Sound();
+
+// M mutes or unmutes all sound.
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyM' && !e.repeat) sound.toggleMute();
+});
 
 // Browsers only allow audio after a user gesture. Unlock on the first
 // input of any kind; calling this again is harmless.
@@ -88,6 +98,7 @@ function resetWorld(): void {
   roundElapsed = 0;
   spawner.reset();
   effects.clear();
+  warned.clear();
 }
 
 // --- Frame -----------------------------------------------------------------
@@ -127,7 +138,14 @@ const loop = new GameLoop({
         const c = actorCenter(e.actor);
         effects.hit(c.x, c.y); // red flash where the villain fired from
         sound.play('villainFired');
+        effects.flash();
         game.onVillainFired();
+      }
+      for (const a of actors) {
+        if (a.kind === 'villain' && a.state === 'exposed' && a.timer <= WARNING_TIME && !warned.has(a.id)) {
+          warned.add(a.id);
+          sound.play('cock');
+        }
       }
       actors = actors.filter(isAlive);
     }

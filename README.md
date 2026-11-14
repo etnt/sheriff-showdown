@@ -50,6 +50,12 @@ The OS cursor is hidden over the canvas; the crosshair is your cursor.
   in the photo. Citizens also walk along the left and right boardwalks.
   Shooting a walking citizen counts like any other citizen hit.
 - Far-away doors and walkers are smaller, so they are harder to hit.
+- A villain fires back 2.0 s (start of round) down to 0.9 s (end) after it
+  steps out, always within 3 s. A bar above its head drains from yellow to
+  red, it cocks its gun 0.6 s before firing, and the screen flashes red when
+  you are hit.
+- Sound: gunshots and hit sounds, plus a town ambience (wind, creaking signs,
+  a far-off saloon piano). Press **M** to mute or unmute everything.
 - Shooting a villain: **+100** body, **+150** headshot.
 - Shooting a citizen: **−200 points** and **−1 life**.
 - A villain that stays exposed until its timer ends **fires** and costs you
